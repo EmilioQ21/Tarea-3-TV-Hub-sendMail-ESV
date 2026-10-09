@@ -157,6 +157,22 @@ export const createReport: RequestHandler = async (request, response) => {
     // sendReportCreatedEmail(...). Proporciona los datos necesarios y maneja el
     // fallo localmente: el email es secundario y no debe revertir el Report.
 
+
+    try {
+      await sendReportCreatedEmail(
+        {
+          reason: report.reason,
+          description: report.description,
+          status: report.status,
+          createdAt: report.createdAt,
+          evidenceUrls: report.evidenceUrls ?? [],
+        },
+        channel.name
+      );
+    } catch (emailError) {
+      console.error('Report created, but the notification email failed:', emailError);
+    }
+
     // TODO V6 SOCKET 3:
     // Después de persistir el Report, emite report:created.
     // El evento debe llegar al usuario propietario y al room de administradores.
@@ -323,15 +339,38 @@ export const closeSupportReport: RequestHandler = async (request, response) => {
   const reporter = report.userId as unknown as { email?: string };
   const channel = report.channelId as unknown as { name?: string };
 
+  console.log('MAIL 4 debug:', {
+  wasAlreadyClosed,
+  reporterEmail: reporter?.email,
+  channelName: channel?.name,
+  status: report.status,
+});
+
   // TODO V6 MAIL 4
   // Si la resolución fue persistida, intenta notificarla con
   // sendReportResolvedEmail(...). Un fallo de entrega no debe deshacer el
   // status RESOLVED, resolvedAt ni resolvedBy ya guardados.
+   if (!wasAlreadyClosed && reporter?.email) {
+    try {
+      await sendReportResolvedEmail(
+        {
+          reason: report.reason,
+          description: report.description,
+          status: report.status,
+          createdAt: report.createdAt,
+          evidenceUrls: report.evidenceUrls ?? [],
+        },
+        channel?.name ?? 'Unknown channel',
+        reporter.email
+      );
+    } catch (emailError) {
+      console.error('Report resolved, but the notification email failed:', emailError);
+    }
+  }
 
   if (!wasAlreadyClosed) emitReportUpdated(userId, report.toObject());
   response.json({ report });
 };
-
 export const deleteReport: RequestHandler = async (request, response) => {
   const reportId = getReportId(request.params.id);
   const report = await Report.findOne({

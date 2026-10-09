@@ -54,16 +54,41 @@ async function sendWithTransporter(message: SendMailOptions): Promise<void> {
 }
 
 export async function sendReportCreatedEmail(report: ReportEmailData, channelName: string): Promise<void> {
-  // TODO V6 MAIL 1
-  // Construye la notificación de Report creado con los datos recibidos: canal,
-  // reason, descripción, status y fecha de creación. Define un asunto adecuado
-  // y usa el helper de transporte existente para enviarla con Nodemailer.
+  const evidence = report.evidenceUrls.length
+    ? `\n\nEvidence:\n${report.evidenceUrls.join('\n')}`
+    : '';
+
+  await sendWithTransporter({
+    from: env.smtpFrom,
+    to: env.reportNotificationEmail,
+    subject: `TV Hub - New Report: ${channelName} (${report.reason})`,
+    text: [
+      'TV Hub - New Report',
+      '',
+      `Channel: ${channelName}`,
+      `Reason: ${report.reason}`,
+      `Description: ${report.description}`,
+      `Status: ${report.status}`,
+      `Created date: ${report.createdAt.toISOString()}`
+    ].join('\n') + evidence
+  });
 }
 
 export async function sendReportResolvedEmail(report: ReportEmailData, channelName: string, recipient: string): Promise<void> {
-  // TODO V6 MAIL 2
-  // Construye la notificación de Report resuelto para el destinatario recibido.
-  // Incluye información relevante como identificador, canal, status final y
-  // fecha de resolución, además de datos del administrador si están disponibles.
-  // Reutiliza el helper de transporte y el preview de Ethereal ya disponibles.
+  await sendWithTransporter({
+    from: env.smtpFrom,
+    to: recipient,
+    subject: `TV Hub - Your Report Was Resolved: ${channelName} (${report.reason})`,
+    text: [
+      'TV Hub - Your Report Was Resolved',
+      '',
+      'Support has resolved your report.',
+      '',
+      `Channel: ${channelName}`,
+      `Reason: ${report.reason}`,
+      `Description: ${report.description}`,
+      `Final status: ${report.status}`,
+      `Created date: ${report.createdAt.toISOString()}`
+    ].join('\n')
+  });
 }
